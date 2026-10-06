@@ -180,11 +180,15 @@
         <input type="date" id="inputDate" style="flex: 1;">
       </div>
 
-      <select id="inputCategory"></select>
+      <!-- Kategorie-Dropdown & Neuer Kategorie-Button -->
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <select id="inputCategory" style="flex: 1;"></select>
+        <button type="button" onclick="addNewCategoryPrompt()" title="Kategorie hinzufügen" style="width: auto; padding: 0.8rem 1rem; font-size: 1rem; background: var(--input-bg); border: 1px solid var(--card-border); box-shadow: none;">➕</button>
+      </div>
 
       <input type="text" id="inputNote" placeholder="Notiz / Beschreibung (optional)">
 
-      <!-- Wiederkehrende Optionen direkt per Inline-Style geregelt -->
+      <!-- Wiederkehrende Optionen mit händischem Zahlenfeld -->
       <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.2rem;">
         <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--subtext); cursor: pointer;">
           <input type="checkbox" id="inputRecurring" style="width: auto;" onchange="toggleRecurringOptions()">
@@ -192,13 +196,8 @@
         </label>
 
         <div id="recurringOptions" style="display: none; gap: 0.5rem; align-items: center;">
-          <label for="recurringMonths" style="font-size: 0.8rem; color: var(--subtext); white-space: nowrap;">Dauer:</label>
-          <select id="recurringMonths">
-            <option value="3">3 Monate</option>
-            <option value="6">6 Monate</option>
-            <option value="12" selected>12 Monate (1 Jahr)</option>
-            <option value="24">24 Monate (2 Jahre)</option>
-          </select>
+          <label for="recurringMonths" style="font-size: 0.8rem; color: var(--subtext); white-space: nowrap;">Dauer in Monaten:</label>
+          <input type="number" id="recurringMonths" min="2" max="120" value="12" style="width: 100px;">
         </div>
       </div>
 
@@ -236,11 +235,25 @@
   }
 
   // 2. KATEGORIEN
-  const expenseCategories = [
-    "Miete", "Semesterbeitrag", "D-Ticket", "Haushalt", 
+  const defaultExpenseCategories = [
+    "Miete", "Versicherung", "Semesterbeitrag", "D-Ticket", "Haushalt", 
     "Essen/Trinken", "Bad/Pflege", "Unterhaltung", "Strom/Telefon", "Sonstiges"
   ];
-  const incomeCategories = ["Lohn", "Ausschenken", "Geschenke", "Sonstiges"];
+  const defaultIncomeCategories = ["Lohn", "Ausschenken", "Geschenke", "Sonstiges"];
+
+  function getCustomCategories(type) {
+    const key = type === "Ausgabe" ? "custom_expense_cats" : "custom_income_cats";
+    return JSON.parse(localStorage.getItem(key) || "[]");
+  }
+
+  function saveCustomCategory(type, name) {
+    const key = type === "Ausgabe" ? "custom_expense_cats" : "custom_income_cats";
+    const existing = getCustomCategories(type);
+    if (!existing.includes(name)) {
+      existing.push(name);
+      localStorage.setItem(key, JSON.stringify(existing));
+    }
+  }
 
   let currentType = "Ausgabe";
   let activeMonth = new Date().getMonth();
@@ -300,16 +313,28 @@
     updateCategoryDropdown();
   }
 
-  function updateCategoryDropdown() {
+  function updateCategoryDropdown(selectedVal = null) {
     const select = document.getElementById("inputCategory");
     select.innerHTML = "";
-    const cats = currentType === "Ausgabe" ? expenseCategories : incomeCategories;
-    cats.forEach(c => {
+    const defaults = currentType === "Ausgabe" ? defaultExpenseCategories : defaultIncomeCategories;
+    const custom = getCustomCategories(currentType);
+    const combined = [...defaults, ...custom];
+
+    combined.forEach(c => {
       const opt = document.createElement("option");
       opt.value = c;
       opt.textContent = c;
+      if (selectedVal && c === selectedVal) opt.selected = true;
       select.appendChild(opt);
     });
+  }
+
+  function addNewCategoryPrompt() {
+    const newCat = prompt(`Neue Kategorie für ${currentType}n eingeben:`);
+    if (!newCat || !newCat.trim()) return;
+    const cleaned = newCat.trim();
+    saveCustomCategory(currentType, cleaned);
+    updateCategoryDropdown(cleaned);
   }
 
   function toggleRecurringOptions() {
@@ -361,8 +386,12 @@
     const noteVal = document.getElementById("inputNote").value.trim();
     const isRecurring = document.getElementById("inputRecurring").checked;
     
-    const monthsSelect = document.getElementById("recurringMonths");
-    const recurringMonths = isRecurring && monthsSelect ? parseInt(monthsSelect.value, 10) : 1;
+    const monthsInput = document.getElementById("recurringMonths");
+    let recurringMonths = 1;
+    if (isRecurring && monthsInput) {
+      recurringMonths = parseInt(monthsInput.value, 10);
+      if (isNaN(recurringMonths) || recurringMonths < 1) recurringMonths = 1;
+    }
 
     if (!amountVal || amountVal <= 0 || !dateVal) {
       return alert("Bitte gültigen Betrag und Datum eingeben.");
@@ -370,8 +399,9 @@
 
     const [year, month, day] = dateVal.split("-").map(Number);
     const recordsToInsert = [];
+    // Eindeutige Serien-ID für wiederkehrende Buchungen
+    const recurringId = isRecurring ? (crypto.randomUUID ? crypto.randomUUID() : "rec_" + Date.now() + "_" + Math.random()) : null;
 
-    // Erstellt für jeden Monat einen separaten Eintrag mit fortgeführtem Datum
     for (let i = 0; i < recurringMonths; i++) {
       const curDate = new Date(year, (month - 1) + i, day);
       const yyyy = curDate.getFullYear();
@@ -385,7 +415,8 @@
         date: formattedDate,
         category: categoryVal,
         note: noteVal,
-        recurring: isRecurring
+        recurring: isRecurring,
+        recurringId: recurringId
       };
 
       const encrypted = await encryptData(entryData);
@@ -405,10 +436,32 @@
     }
   }
 
+  // Löschfunktion mit Nachfrage für nachfolgende Monate
   async function deleteEntry(id) {
-    await getSupabase().from("secure_budget").delete().eq("id", id);
-    allEntries = allEntries.filter(e => e.id !== id);
-    render();
+    const entry = allEntries.find(e => e.id === id);
+    if (!entry) return;
+
+    let idsToDelete = [id];
+
+    if (entry.recurring && entry.recurringId) {
+      const choice = confirm("Dies ist eine wiederkehrende Buchung.\n\nSollen auch alle FOLGENDEN Monate ab diesem Datum gelöscht werden?\n\n[OK] = Diesen und alle Folgemonate löschen\n[Abbrechen] = Nur diesen einen Monat löschen");
+      if (choice) {
+        // Löscht diesen Eintrag sowie alle Folgeeinträge derselben Serie
+        idsToDelete = allEntries
+          .filter(e => e.recurringId === entry.recurringId && e.date >= entry.date)
+          .map(e => e.id);
+      }
+    } else {
+      if (!confirm("Diesen Eintrag wirklich löschen?")) return;
+    }
+
+    const { error } = await getSupabase().from("secure_budget").delete().in("id", idsToDelete);
+    if (error) {
+      alert("Fehler beim Löschen: " + error.message);
+    } else {
+      allEntries = allEntries.filter(e => !idsToDelete.includes(e.id));
+      render();
+    }
   }
 
   function render() {
@@ -502,7 +555,6 @@
 
     filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Exakte Spaltenanordnung für das Excel-Blatt
     const rows = filtered.map(item => {
       const amountStr = item.amount.toFixed(2).replace('.', ',');
       return [
