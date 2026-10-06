@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Haushaltsbuch</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #f2f2f7;
+      --card-bg: #ffffff;
+      --text: #000000;
+      --subtext: #8e8e93;
+      --border: #e5e5ea;
+      --accent: #007aff;
+      --income: #34c759;
+      --expense: #ff3b30;
+      --danger: #ff3b30;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #000000;
+        --card-bg: #1c1c1e;
+        --text: #ffffff;
+        --subtext: #8e8e93;
+        --border: #38383a;
+        --accent: #0a84ff;
+        --income: #30d158;
+        --expense: #ff453a;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .app-container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 1rem; }
+    .card { background: var(--card-bg); border-radius: 14px; padding: 1rem; border: 1px solid var(--border); }
+    h1 { font-size: 1.4rem; text-align: center; }
+    input, select, textarea, button {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    button { background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; border: none; }
+    .type-selector { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .type-btn {
+      flex: 1;
+      padding: 0.6rem;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    .type-btn.active-expense { background: var(--expense); color: #fff; border-color: var(--expense); }
+    .type-btn.active-income { background: var(--income); color: #fff; border-color: var(--income); }
+    .dashboard { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; text-align: center; }
+    .stat-label { font-size: 0.75rem; color: var(--subtext); margin-bottom: 0.2rem; }
+    .stat-val { font-size: 0.95rem; font-weight: 700; }
+    .nav-bar { display: flex; justify-content: space-between; align-items: center; }
+    .nav-btn { background: none; border: none; color: var(--accent); font-size: 1.5rem; cursor: pointer; width: auto; padding: 0.2rem 0.8rem; }
+    .entry-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+    .entry-item:last-child { border-bottom: none; }
+    .entry-info { display: flex; flex-direction: column; gap: 0.2rem; }
+    .entry-cat { font-weight: 600; font-size: 0.95rem; }
+    .entry-note { font-size: 0.8rem; color: var(--subtext); }
+    .entry-date { font-size: 0.75rem; color: var(--subtext); }
+    .entry-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+    .amount { font-weight: 700; font-size: 1rem; }
+    .amount.income { color: var(--income); }
+    .amount.expense { color: var(--expense); }
+    .del-btn { background: none; border: none; color: var(--danger); font-size: 0.75rem; cursor: pointer; width: auto; padding: 0; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <h1>Haushaltsbuch</h1>
+
+  <div id="authSection" class="card" style="display: flex; flex-direction: column; gap: 0.75rem;">
+    <p style="font-size: 0.9rem; color: var(--subtext);">Gib dein Master-Passwort ein, um deine Daten zu entschlüsseln.</p>
+    <input type="password" id="masterPassword" placeholder="Master-Passwort">
+    <button onclick="unlockVault()">Tresor öffnen</button>
+  </div>
+
+  <div id="mainSection" class="hidden" style="display: flex; flex-direction: column; gap: 1rem;">
+    
+    <div class="card nav-bar">
+      <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+      <div id="currentMonthLabel" style="font-weight: 600; font-size: 1.1rem;"></div>
+      <button class="nav-btn" onclick="changeMonth(1)">›</button>
+    </div>
+
+    <div class="card dashboard">
+      <div>
+        <div class="stat-label">Einnahmen</div>
+        <div id="totalIncome" class="stat-val" style="color: var(--income);">0,00 €</div>
+      </div>
+      <div>
+        <div class="stat-label">Ausgaben</div>
+        <div id="totalExpense" class="stat-val" style="color: var(--expense);">0,00 €</div>
+      </div>
+      <div>
+        <div class="stat-label">Saldo</div>
+        <div id="totalBalance" class="stat-val">0,00 €</div>
+      </div>
+    </div>
+
+    <div class="card" style="display: flex; flex-direction: column; gap: 0.6rem;">
+      <div class="type-selector">
+        <button id="btnExpense" class="type-btn active-expense" onclick="setType('Ausgabe')">Ausgabe</button>
+        <button id="btnIncome" class="type-btn" onclick="setType('Einnahme')">Einnahme</button>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem;">
+        <input type="number" id="inputAmount" step="0.01" placeholder="Betrag in €" style="flex: 1;">
+        <input type="date" id="inputDate" style="flex: 1;">
+      </div>
+
+      <select id="inputCategory"></select>
+
+      <input type="text" id="inputNote" placeholder="Notiz / Beschreibung (optional)">
+
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--subtext); cursor: pointer;">
+        <input type="checkbox" id="inputRecurring" style="width: auto;">
+        Wiederkehrende Buchung (Abo/Fixkosten)
+      </label>
+
+      <button onclick="saveEntry()">Buchen</button>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Buchungen</h3>
+      <div id="entriesList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 1. SUPABASE-DATEN
+  const SUPABASE_URL = "https://pbcoovqhidaiuuetugul.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiY29vdnFoaWRhaXV1ZXR1Z3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMDkwNzMsImV4cCI6MjEwNjg4NTA3M30.2gz4dRmYJgSdQAtXrsbIohYpJVJWup_bNseIf2-iwuc";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // 2. KATEGORIEN
+  const expenseCategories = [
+    "Miete", "Semesterbeitrag", "D-Ticket", "Haushalt", 
+    "Essen/Trinken", "Bad/Pflege", "Unterhaltung", "Strom/Telefon", "Sonstiges"
+  ];
+  const incomeCategories = ["Lohn", "Ausschenken", "Geschenke", "Sonstiges"];
+
+  let currentType = "Ausgabe";
+  let activeMonth = new Date().getMonth();
+  let activeYear = new Date().getFullYear();
+  let cryptoKey = null;
+  let allEntries = [];
+
+  // 3. KRYPTOGRAFIE (AES-GCM 256)
+  async function deriveKey(password) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
+    );
+    const salt = enc.encode("haushaltsbuch-secure-salt-2026");
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  async function encryptData(dataObj) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(JSON.stringify(dataObj));
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, cryptoKey, encoded);
+    return {
+      ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
+      iv: btoa(String.fromCharCode(...iv))
+    };
+  }
+
+  async function decryptData(ciphertextBase64, ivBase64) {
+    try {
+      const iv = new Uint8Array(atob(ivBase64).split("").map(c => c.charCodeAt(0)));
+      const data = new Uint8Array(atob(ciphertextBase64).split("").map(c => c.charCodeAt(0)));
+      const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, cryptoKey, data);
+      return JSON.parse(new TextDecoder().decode(decrypted));
+    } catch {
+      return null;
+    }
+  }
+
+  // 4. UI LOGIK
+  function setType(type) {
+    currentType = type;
+    const btnExp = document.getElementById("btnExpense");
+    const btnInc = document.getElementById("btnIncome");
+    if (type === "Ausgabe") {
+      btnExp.className = "type-btn active-expense";
+      btnInc.className = "type-btn";
+    } else {
+      btnExp.className = "type-btn";
+      btnInc.className = "type-btn active-income";
+    }
+    updateCategoryDropdown();
+  }
+
+  function updateCategoryDropdown() {
+    const select = document.getElementById("inputCategory");
+    select.innerHTML = "";
+    const cats = currentType === "Ausgabe" ? expenseCategories : incomeCategories;
+    cats.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      select.appendChild(opt);
+    });
+  }
+
+  function changeMonth(delta) {
+    activeMonth += delta;
+    if (activeMonth < 0) { activeMonth = 11; activeYear--; }
+    else if (activeMonth > 11) { activeMonth = 0; activeYear++; }
+    render();
+  }
+
+  async function unlockVault() {
+    const pwd = document.getElementById("masterPassword").value;
+    if (!pwd) return alert("Bitte Passwort angeben.");
+    cryptoKey = await deriveKey(pwd);
+    document.getElementById("authSection").classList.add("hidden");
+    document.getElementById("mainSection").classList.remove("hidden");
+
+    document.getElementById("inputDate").valueAsDate = new Date();
+    updateCategoryDropdown();
+    await loadData();
+    subscribeRealtime();
+  }
+
+  async function loadData() {
+    const { data, error } = await supabase.from("secure_budget").select("*").order("created_at", { ascending: false });
+    if (error) return console.error(error);
+    allEntries = [];
+    for (const row of data) {
+      const dec = await decryptData(row.ciphertext, row.iv);
+      if (dec) allEntries.push({ id: row.id, ...dec });
+    }
+    render();
+  }
+
+  async function saveEntry() {
+    const amountVal = parseFloat(document.getElementById("inputAmount").value);
+    const dateVal = document.getElementById("inputDate").value;
+    const categoryVal = document.getElementById("inputCategory").value;
+    const noteVal = document.getElementById("inputNote").value.trim();
+    const recurringVal = document.getElementById("inputRecurring").checked;
+
+    if (!amountVal || amountVal <= 0 || !dateVal) return alert("Bitte gültigen Betrag und Datum eingeben.");
+
+    const entryData = {
+      amount: amountVal,
+      type: currentType,
+      date: dateVal,
+      category: categoryVal,
+      note: noteVal,
+      recurring: recurringVal
+    };
+
+    const { ciphertext, iv } = await encryptData(entryData);
+    const { error } = await supabase.from("secure_budget").insert([{ ciphertext, iv }]);
+    if (error) alert("Fehler: " + error.message);
+    else {
+      document.getElementById("inputAmount").value = "";
+      document.getElementById("inputNote").value = "";
+      document.getElementById("inputRecurring").checked = false;
+    }
+  }
+
+  async function deleteEntry(id) {
+    await supabase.from("secure_budget").delete().eq("id", id);
+    allEntries = allEntries.filter(e => e.id !== id);
+    render();
+  }
+
+  function render() {
+    const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+    document.getElementById("currentMonthLabel").textContent = `${monthNames[activeMonth]} ${activeYear}`;
+
+    const filtered = allEntries.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === activeMonth && d.getFullYear() === activeYear;
+    });
+
+    let inc = 0, exp = 0;
+    const listEl = document.getElementById("entriesList");
+    listEl.innerHTML = filtered.length === 0 ? '<div style="color: var(--subtext); text-align: center; padding: 1rem 0;">Keine Buchungen</div>' : '';
+
+    filtered.forEach(item => {
+      if (item.type === "Einnahme") inc += item.amount;
+      else exp += item.amount;
+
+      const div = document.createElement("div");
+      div.className = "entry-item";
+      div.innerHTML = `
+        <div class="entry-info">
+          <span class="entry-cat">${escapeHtml(item.category)} ${item.recurring ? "🔄" : ""}</span>
+          ${item.note ? `<span class="entry-note">${escapeHtml(item.note)}</span>` : ""}
+          <span class="entry-date">${item.date}</span>
+        </div>
+        <div class="entry-right">
+          <span class="amount ${item.type === "Einnahme" ? "income" : "expense"}">
+            ${item.type === "Einnahme" ? "+" : "-"}${item.amount.toFixed(2)} €
+          </span>
+          <button class="del-btn" onclick="deleteEntry('${item.id}')">Löschen</button>
+        </div>
+      `;
+      listEl.appendChild(div);
+    });
+
+    document.getElementById("totalIncome").textContent = inc.toFixed(2) + " €";
+    document.getElementById("totalExpense").textContent = exp.toFixed(2) + " €";
+    const balance = inc - exp;
+    const balEl = document.getElementById("totalBalance");
+    balEl.textContent = balance.toFixed(2) + " €";
+    balEl.style.color = balance >= 0 ? "var(--income)" : "var(--expense)";
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
+  }
+
+  function subscribeRealtime() {
+    supabase.channel("secure_budget_changes")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "secure_budget" }, async p => {
+        const dec = await decryptData(p.new.ciphertext, p.new.iv);
+        if (dec) {
+          allEntries.unshift({ id: p.new.id, ...dec });
+          render();
+        }
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "secure_budget" }, p => {
+        allEntries = allEntries.filter(e => e.id !== p.old.id);
+        render();
+      })
+      .subscribe();
+  }
+</script>
+</body>
+</html>
