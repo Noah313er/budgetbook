@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Haushaltsbuch</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon.svg">
   <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <style>
-        :root {
+    :root {
       --bg: #0b0d13;
       --card-bg: rgba(255, 255, 255, 0.08);
       --card-border: rgba(255, 255, 255, 0.16);
@@ -28,7 +28,6 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
       background-color: var(--bg);
-      /* Dynamische Liquid Orbs im Hintergrund */
       background-image: 
         radial-gradient(circle at 10% 15%, rgba(10, 132, 255, 0.28) 0%, transparent 45%),
         radial-gradient(circle at 90% 85%, rgba(255, 214, 10, 0.18) 0%, transparent 45%),
@@ -43,7 +42,6 @@
 
     .app-container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 1rem; }
 
-    /* Liquid Glass Cards */
     .card {
       background: var(--card-bg);
       backdrop-filter: var(--glass-blur);
@@ -137,14 +135,14 @@
 <div class="app-container">
   <h1>Haushaltsbuch</h1>
 
-  <!-- Entsperren mit Master-Passwort -->
+  <!-- Master-Passwort Tresor -->
   <div id="authSection" class="card" style="display: flex; flex-direction: column; gap: 0.75rem;">
     <p style="font-size: 0.9rem; color: var(--subtext);">Gib dein Master-Passwort ein, um deine Finanzdaten lokal zu entschlüsseln.</p>
     <input type="password" id="masterPassword" placeholder="Master-Passwort" onkeydown="if(event.key === 'Enter') unlockVault()">
     <button type="button" onclick="unlockVault()">Tresor öffnen</button>
   </div>
 
-  <!-- Hauptbereich nach Entsperren -->
+  <!-- Hauptbereich -->
   <div id="mainSection" class="hidden" style="display: flex; flex-direction: column; gap: 1rem;">
     
     <!-- Monatsauswahl -->
@@ -170,7 +168,7 @@
       </div>
     </div>
 
-    <!-- Neue Buchung eintragen -->
+    <!-- Neue Buchung -->
     <div class="card" style="display: flex; flex-direction: column; gap: 0.6rem;">
       <div class="type-selector">
         <button type="button" id="btnExpense" class="type-btn active-expense" onclick="setType('Ausgabe')">Ausgabe</button>
@@ -186,10 +184,23 @@
 
       <input type="text" id="inputNote" placeholder="Notiz / Beschreibung (optional)">
 
-      <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--subtext); cursor: pointer;">
-        <input type="checkbox" id="inputRecurring" style="width: auto;">
-        Wiederkehrende Buchung (Abo/Fixkosten)
-      </label>
+      <!-- Wiederkehrende Optionen -->
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.2rem;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--subtext); cursor: pointer;">
+          <input type="checkbox" id="inputRecurring" style="width: auto;" onchange="toggleRecurringOptions()">
+          Wiederkehrende Buchung (Fixkosten/Abo)
+        </label>
+
+        <div id="recurringOptions" class="hidden" style="display: flex; gap: 0.5rem; align-items: center;">
+          <label for="recurringMonths" style="font-size: 0.8rem; color: var(--subtext); white-space: nowrap;">Dauer:</label>
+          <select id="recurringMonths">
+            <option value="3">3 Monate</option>
+            <option value="6">6 Monate</option>
+            <option value="12" selected>12 Monate (1 Jahr)</option>
+            <option value="24">24 Monate (2 Jahre)</option>
+          </select>
+        </div>
+      </div>
 
       <button type="button" onclick="saveEntry()">Buchen</button>
     </div>
@@ -198,7 +209,7 @@
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
         <h3 style="font-size: 1rem;">Buchungen</h3>
-        <button type="button" onclick="promptCopyType()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; background: var(--bg); color: var(--text); border: 1px solid var(--border);">
+        <button type="button" onclick="promptCopyType()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); box-shadow: none;">
           📋 Für Excel kopieren
         </button>
       </div>
@@ -208,7 +219,7 @@
 </div>
 
 <script>
-  // 1. SUPABASE-DATEN
+  // 1. SUPABASE KONFIGURATION
   const SUPABASE_URL = "https://pbcoovqhidaiuuetugul.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiY29vdnFoaWRhaXV1ZXR1Z3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMDkwNzMsImV4cCI6MjEwNjg4NTA3M30.2gz4dRmYJgSdQAtXrsbIohYpJVJWup_bNseIf2-iwuc";
   let supabase = null;
@@ -217,7 +228,7 @@
     if (!supabase) {
       const clientCreator = (window.supabase && window.supabase.createClient) || (window.supabaseClient && window.supabaseClient.createClient);
       if (!clientCreator) {
-        throw new Error("Supabase-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen.");
+        throw new Error("Supabase-Bibliothek konnte nicht geladen werden.");
       }
       supabase = clientCreator(SUPABASE_URL, SUPABASE_KEY);
     }
@@ -301,6 +312,16 @@
     });
   }
 
+  function toggleRecurringOptions() {
+    const isChecked = document.getElementById("inputRecurring").checked;
+    const optDiv = document.getElementById("recurringOptions");
+    if (isChecked) {
+      optDiv.classList.remove("hidden");
+    } else {
+      optDiv.classList.add("hidden");
+    }
+  }
+
   function changeMonth(delta) {
     activeMonth += delta;
     if (activeMonth < 0) { activeMonth = 11; activeYear--; }
@@ -342,27 +363,45 @@
     const dateVal = document.getElementById("inputDate").value;
     const categoryVal = document.getElementById("inputCategory").value;
     const noteVal = document.getElementById("inputNote").value.trim();
-    const recurringVal = document.getElementById("inputRecurring").checked;
+    const isRecurring = document.getElementById("inputRecurring").checked;
+    const recurringMonths = isRecurring ? parseInt(document.getElementById("recurringMonths").value, 10) : 1;
 
-    if (!amountVal || amountVal <= 0 || !dateVal) return alert("Bitte gültigen Betrag und Datum eingeben.");
+    if (!amountVal || amountVal <= 0 || !dateVal) {
+      return alert("Bitte gültigen Betrag und Datum eingeben.");
+    }
 
-    const entryData = {
-      amount: amountVal,
-      type: currentType,
-      date: dateVal,
-      category: categoryVal,
-      note: noteVal,
-      recurring: recurringVal
-    };
+    const [year, month, day] = dateVal.split("-").map(Number);
+    const recordsToInsert = [];
 
-    const { ciphertext, iv } = await encryptData(entryData);
-    const { error } = await getSupabase().from("secure_budget").insert([{ ciphertext, iv }]);
+    // Erstellt für jeden gewählten Monat einen Eintrag
+    for (let i = 0; i < recurringMonths; i++) {
+      const curDate = new Date(year, (month - 1) + i, day);
+      const yyyy = curDate.getFullYear();
+      const mm = String(curDate.getMonth() + 1).padStart(2, "0");
+      const dd = String(curDate.getDate()).padStart(2, "0");
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+      const entryData = {
+        amount: amountVal,
+        type: currentType,
+        date: formattedDate,
+        category: categoryVal,
+        note: noteVal,
+        recurring: isRecurring
+      };
+
+      const encrypted = await encryptData(entryData);
+      recordsToInsert.push(encrypted);
+    }
+
+    const { error } = await getSupabase().from("secure_budget").insert(recordsToInsert);
     if (error) {
       alert("Fehler beim Speichern: " + error.message);
     } else {
       document.getElementById("inputAmount").value = "";
       document.getElementById("inputNote").value = "";
       document.getElementById("inputRecurring").checked = false;
+      document.getElementById("recurringOptions").classList.add("hidden");
       await loadData();
     }
   }
@@ -378,8 +417,8 @@
     document.getElementById("currentMonthLabel").textContent = `${monthNames[activeMonth]} ${activeYear}`;
 
     const filtered = allEntries.filter(e => {
-      const d = new Date(e.date);
-      return d.getMonth() === activeMonth && d.getFullYear() === activeYear;
+      const parts = e.date.split("-");
+      return (parseInt(parts[1], 10) - 1) === activeMonth && parseInt(parts[0], 10) === activeYear;
     });
 
     let inc = 0, exp = 0;
@@ -438,7 +477,7 @@
 
   // 5. EXCEL EXPORT (Datum | Kategorie | Betrag | Notizen)
   function promptCopyType() {
-    const choice = prompt("Was möchtest du kopieren?\n\n1 = Ausgaben\n2 = Einnahmen", "1");
+    const choice = prompt("Was möchtest du für Excel kopieren?\n\n1 = Ausgaben\n2 = Einnahmen", "1");
     if (!choice) return;
 
     if (choice.trim() === "1" || choice.toLowerCase().includes("ausgabe")) {
@@ -452,9 +491,9 @@
 
   async function executeCopy(targetType) {
     const filtered = allEntries.filter(e => {
-      const d = new Date(e.date);
-      return d.getMonth() === activeMonth && 
-             d.getFullYear() === activeYear && 
+      const parts = e.date.split("-");
+      return (parseInt(parts[1], 10) - 1) === activeMonth && 
+             parseInt(parts[0], 10) === activeYear && 
              e.type === targetType;
     });
 
@@ -464,7 +503,7 @@
 
     filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Reihenfolge: Datum | Kategorie | Betrag | Notizen
+    // Exakte Reihenfolge für dein Excel-Tabellenblatt
     const rows = filtered.map(item => {
       const amountStr = item.amount.toFixed(2).replace('.', ',');
       return [
@@ -477,7 +516,7 @@
 
     try {
       await navigator.clipboard.writeText(rows.join("\n"));
-      alert(`${filtered.length} ${targetType}n kopiert! In Excel Zelle A anklicken und Cmd+V drücken.`);
+      alert(`${filtered.length} ${targetType}n kopiert! In Excel die Zelle A (Datum) anklicken und Cmd+V drücken.`);
     } catch (err) {
       alert("Kopierfehler: " + err.message);
     }
