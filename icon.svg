@@ -1,28 +1,68 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Hintergrundverlauf -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1c1c1e"/>
-      <stop offset="100%" stop-color="#0a0a0c"/>
+    <!-- Hintergrund-Farbverlauf -->
+    <linearGradient id="bg" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#38d4f8"/>
+      <stop offset="55%" stop-color="#1ea6fc"/>
+      <stop offset="100%" stop-color="#2354ee"/>
     </linearGradient>
-    <!-- Goldener Akzent für das Schloss -->
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffd60a"/>
-      <stop offset="100%" stop-color="#d4a373"/>
+
+    <!-- Liquid-Glass-Kantenverlauf -->
+    <linearGradient id="glassEdge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="70%" stop-color="#d4edff" stop-opacity="0.80"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.95"/>
     </linearGradient>
+
+    <!-- Weiche Glasflächenfüllung -->
+    <linearGradient id="glassBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.16"/>
+    </linearGradient>
+
+    <!-- Tiefenschatten -->
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#0a2a7a" flood-opacity="0.45"/>
+    </filter>
   </defs>
 
-  <!-- Hintergrund mit abgerundeten Ecken (iOS-Form) -->
-  <rect width="512" height="512" rx="115" fill="url(#bgGrad)"/>
+  <!-- Kachel -->
+  <rect width="512" height="512" rx="115" fill="url(#bg)"/>
 
-  <!-- Äußerer Tresorbogen / Bügel -->
-  <path d="M196 220 V160 C196 126.8 222.8 100 256 100 C289.2 100 316 126.8 316 160 V220" 
-        fill="none" stroke="url(#goldGrad)" stroke-width="28" stroke-linecap="round"/>
+  <!-- Nahtloses Liquid-Glass-Schloss -->
+  <g filter="url(#shadow)">
+    <!-- Eine einzige zusammenhängende Form (Bügel + Körper verschmolzen) mit Aussparung -->
+    <path fill-rule="evenodd"
+          fill="url(#glassBody)"
+          stroke="url(#glassEdge)"
+          stroke-width="10"
+          stroke-linejoin="round"
+          d="
+            M 194 220
+            C 194 150, 222 108, 256 108
+            C 290 108, 318 150, 318 220
+            H 326
+            C 348 220, 362 234, 362 256
+            V 364
+            C 362 386, 348 400, 326 400
+            H 186
+            C 164 400, 150 386, 150 364
+            V 256
+            C 150 234, 164 220, 186 220
+            Z
 
-  <!-- Schlosskörper -->
-  <rect x="156" y="220" width="200" height="170" rx="36" fill="url(#goldGrad)"/>
+            M 226 220
+            H 286
+            V 185
+            C 286 150, 273 134, 256 134
+            C 239 134, 226 150, 226 185
+            Z
+          " />
 
-  <!-- Schlüsselloch -->
-  <circle cx="256" cy="290" r="16" fill="#1c1c1e"/>
-  <polygon points="248,290 264,290 268,340 244,340" fill="#1c1c1e"/>
+    <!-- Schlüsselloch im Glasstil -->
+    <circle cx="256" cy="292" r="14" fill="url(#glassEdge)"/>
+    <polygon points="249,292 263,292 267,338 245,338" fill="url(#glassEdge)"/>
+  </g>
 </svg>
