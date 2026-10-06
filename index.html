@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Haushaltsbuch</title>
   <link rel="manifest" href="manifest.json">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <style>
     :root {
       --bg: #f2f2f7;
@@ -91,20 +91,24 @@
 <div class="app-container">
   <h1>Haushaltsbuch</h1>
 
+  <!-- Entsperren mit Master-Passwort -->
   <div id="authSection" class="card" style="display: flex; flex-direction: column; gap: 0.75rem;">
-    <p style="font-size: 0.9rem; color: var(--subtext);">Gib dein Master-Passwort ein, um deine Daten zu entschlüsseln.</p>
-    <input type="password" id="masterPassword" placeholder="Master-Passwort">
-    <button onclick="unlockVault()">Tresor öffnen</button>
+    <p style="font-size: 0.9rem; color: var(--subtext);">Gib dein Master-Passwort ein, um deine Finanzdaten lokal zu entschlüsseln.</p>
+    <input type="password" id="masterPassword" placeholder="Master-Passwort" onkeydown="if(event.key === 'Enter') unlockVault()">
+    <button type="button" onclick="unlockVault()">Tresor öffnen</button>
   </div>
 
+  <!-- Hauptbereich nach Entsperren -->
   <div id="mainSection" class="hidden" style="display: flex; flex-direction: column; gap: 1rem;">
     
+    <!-- Monatsauswahl -->
     <div class="card nav-bar">
-      <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+      <button type="button" class="nav-btn" onclick="changeMonth(-1)">‹</button>
       <div id="currentMonthLabel" style="font-weight: 600; font-size: 1.1rem;"></div>
-      <button class="nav-btn" onclick="changeMonth(1)">›</button>
+      <button type="button" class="nav-btn" onclick="changeMonth(1)">›</button>
     </div>
 
+    <!-- Übersicht Dashboard -->
     <div class="card dashboard">
       <div>
         <div class="stat-label">Einnahmen</div>
@@ -120,10 +124,11 @@
       </div>
     </div>
 
+    <!-- Neue Buchung eintragen -->
     <div class="card" style="display: flex; flex-direction: column; gap: 0.6rem;">
       <div class="type-selector">
-        <button id="btnExpense" class="type-btn active-expense" onclick="setType('Ausgabe')">Ausgabe</button>
-        <button id="btnIncome" class="type-btn" onclick="setType('Einnahme')">Einnahme</button>
+        <button type="button" id="btnExpense" class="type-btn active-expense" onclick="setType('Ausgabe')">Ausgabe</button>
+        <button type="button" id="btnIncome" class="type-btn" onclick="setType('Einnahme')">Einnahme</button>
       </div>
 
       <div style="display: flex; gap: 0.5rem;">
@@ -140,9 +145,10 @@
         Wiederkehrende Buchung (Abo/Fixkosten)
       </label>
 
-      <button onclick="saveEntry()">Buchen</button>
+      <button type="button" onclick="saveEntry()">Buchen</button>
     </div>
 
+    <!-- Buchungsliste -->
     <div class="card">
       <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Buchungen</h3>
       <div id="entriesList"></div>
@@ -154,7 +160,18 @@
   // 1. SUPABASE-DATEN
   const SUPABASE_URL = "https://pbcoovqhidaiuuetugul.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBiY29vdnFoaWRhaXV1ZXR1Z3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMDkwNzMsImV4cCI6MjEwNjg4NTA3M30.2gz4dRmYJgSdQAtXrsbIohYpJVJWup_bNseIf2-iwuc";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let supabase = null;
+
+  function getSupabase() {
+    if (!supabase) {
+      const clientCreator = (window.supabase && window.supabase.createClient) || (window.supabaseClient && window.supabaseClient.createClient);
+      if (!clientCreator) {
+        throw new Error("Supabase-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen.");
+      }
+      supabase = clientCreator(SUPABASE_URL, SUPABASE_KEY);
+    }
+    return supabase;
+  }
 
   // 2. KATEGORIEN
   const expenseCategories = [
@@ -241,20 +258,25 @@
   }
 
   async function unlockVault() {
-    const pwd = document.getElementById("masterPassword").value;
-    if (!pwd) return alert("Bitte Passwort angeben.");
-    cryptoKey = await deriveKey(pwd);
-    document.getElementById("authSection").classList.add("hidden");
-    document.getElementById("mainSection").classList.remove("hidden");
+    try {
+      const pwd = document.getElementById("masterPassword").value;
+      if (!pwd) return alert("Bitte Passwort angeben.");
+      getSupabase();
+      cryptoKey = await deriveKey(pwd);
+      document.getElementById("authSection").classList.add("hidden");
+      document.getElementById("mainSection").classList.remove("hidden");
 
-    document.getElementById("inputDate").valueAsDate = new Date();
-    updateCategoryDropdown();
-    await loadData();
-    subscribeRealtime();
+      document.getElementById("inputDate").valueAsDate = new Date();
+      updateCategoryDropdown();
+      await loadData();
+      subscribeRealtime();
+    } catch (err) {
+      alert("Fehler beim Starten: " + err.message);
+    }
   }
 
   async function loadData() {
-    const { data, error } = await supabase.from("secure_budget").select("*").order("created_at", { ascending: false });
+    const { data, error } = await getSupabase().from("secure_budget").select("*").order("created_at", { ascending: false });
     if (error) return console.error(error);
     allEntries = [];
     for (const row of data) {
@@ -283,17 +305,19 @@
     };
 
     const { ciphertext, iv } = await encryptData(entryData);
-    const { error } = await supabase.from("secure_budget").insert([{ ciphertext, iv }]);
-    if (error) alert("Fehler: " + error.message);
-    else {
+    const { error } = await getSupabase().from("secure_budget").insert([{ ciphertext, iv }]);
+    if (error) {
+      alert("Fehler beim Speichern: " + error.message);
+    } else {
       document.getElementById("inputAmount").value = "";
       document.getElementById("inputNote").value = "";
       document.getElementById("inputRecurring").checked = false;
+      await loadData();
     }
   }
 
   async function deleteEntry(id) {
-    await supabase.from("secure_budget").delete().eq("id", id);
+    await getSupabase().from("secure_budget").delete().eq("id", id);
     allEntries = allEntries.filter(e => e.id !== id);
     render();
   }
@@ -327,7 +351,7 @@
           <span class="amount ${item.type === "Einnahme" ? "income" : "expense"}">
             ${item.type === "Einnahme" ? "+" : "-"}${item.amount.toFixed(2)} €
           </span>
-          <button class="del-btn" onclick="deleteEntry('${item.id}')">Löschen</button>
+          <button type="button" class="del-btn" onclick="deleteEntry('${item.id}')">Löschen</button>
         </div>
       `;
       listEl.appendChild(div);
@@ -346,10 +370,10 @@
   }
 
   function subscribeRealtime() {
-    supabase.channel("secure_budget_changes")
+    getSupabase().channel("secure_budget_changes")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "secure_budget" }, async p => {
         const dec = await decryptData(p.new.ciphertext, p.new.iv);
-        if (dec) {
+        if (dec && !allEntries.some(e => e.id === p.new.id)) {
           allEntries.unshift({ id: p.new.id, ...dec });
           render();
         }
