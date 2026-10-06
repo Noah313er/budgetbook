@@ -184,14 +184,14 @@
 
       <input type="text" id="inputNote" placeholder="Notiz / Beschreibung (optional)">
 
-      <!-- Wiederkehrende Optionen -->
+      <!-- Wiederkehrende Optionen direkt per Inline-Style geregelt -->
       <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.2rem;">
         <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--subtext); cursor: pointer;">
           <input type="checkbox" id="inputRecurring" style="width: auto;" onchange="toggleRecurringOptions()">
           Wiederkehrende Buchung (Fixkosten/Abo)
         </label>
 
-        <div id="recurringOptions" class="hidden" style="display: flex; gap: 0.5rem; align-items: center;">
+        <div id="recurringOptions" style="display: none; gap: 0.5rem; align-items: center;">
           <label for="recurringMonths" style="font-size: 0.8rem; color: var(--subtext); white-space: nowrap;">Dauer:</label>
           <select id="recurringMonths">
             <option value="3">3 Monate</option>
@@ -315,11 +315,7 @@
   function toggleRecurringOptions() {
     const isChecked = document.getElementById("inputRecurring").checked;
     const optDiv = document.getElementById("recurringOptions");
-    if (isChecked) {
-      optDiv.classList.remove("hidden");
-    } else {
-      optDiv.classList.add("hidden");
-    }
+    optDiv.style.display = isChecked ? "flex" : "none";
   }
 
   function changeMonth(delta) {
@@ -364,7 +360,9 @@
     const categoryVal = document.getElementById("inputCategory").value;
     const noteVal = document.getElementById("inputNote").value.trim();
     const isRecurring = document.getElementById("inputRecurring").checked;
-    const recurringMonths = isRecurring ? parseInt(document.getElementById("recurringMonths").value, 10) : 1;
+    
+    const monthsSelect = document.getElementById("recurringMonths");
+    const recurringMonths = isRecurring && monthsSelect ? parseInt(monthsSelect.value, 10) : 1;
 
     if (!amountVal || amountVal <= 0 || !dateVal) {
       return alert("Bitte gültigen Betrag und Datum eingeben.");
@@ -373,7 +371,7 @@
     const [year, month, day] = dateVal.split("-").map(Number);
     const recordsToInsert = [];
 
-    // Erstellt für jeden gewählten Monat einen Eintrag
+    // Erstellt für jeden Monat einen separaten Eintrag mit fortgeführtem Datum
     for (let i = 0; i < recurringMonths; i++) {
       const curDate = new Date(year, (month - 1) + i, day);
       const yyyy = curDate.getFullYear();
@@ -401,8 +399,9 @@
       document.getElementById("inputAmount").value = "";
       document.getElementById("inputNote").value = "";
       document.getElementById("inputRecurring").checked = false;
-      document.getElementById("recurringOptions").classList.add("hidden");
+      document.getElementById("recurringOptions").style.display = "none";
       await loadData();
+      alert(isRecurring ? `${recurringMonths} Monate erfolgreich verbucht!` : "Eintrag gespeichert!");
     }
   }
 
@@ -503,7 +502,7 @@
 
     filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Exakte Reihenfolge für dein Excel-Tabellenblatt
+    // Exakte Spaltenanordnung für das Excel-Blatt
     const rows = filtered.map(item => {
       const amountStr = item.amount.toFixed(2).replace('.', ',');
       return [
@@ -516,7 +515,7 @@
 
     try {
       await navigator.clipboard.writeText(rows.join("\n"));
-      alert(`${filtered.length} ${targetType}n kopiert! In Excel die Zelle A (Datum) anklicken und Cmd+V drücken.`);
+      alert(`${filtered.length} ${targetType}n kopiert! In Excel Zelle A anklicken und Cmd+V drücken.`);
     } catch (err) {
       alert("Kopierfehler: " + err.message);
     }
