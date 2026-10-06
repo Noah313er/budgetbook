@@ -149,13 +149,16 @@
       <button type="button" onclick="saveEntry()">Buchen</button>
     </div>
 
-    <!-- Buchungsliste -->
+        <!-- Buchungsliste -->
     <div class="card">
-      <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Buchungen</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <h3 style="font-size: 1rem;">Buchungen</h3>
+        <button type="button" onclick="promptCopyType()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; background: var(--bg); color: var(--text); border: 1px solid var(--border);">
+          📋 Für Excel kopieren
+        </button>
+      </div>
       <div id="entriesList"></div>
     </div>
-  </div>
-</div>
 
 <script>
   // 1. SUPABASE-DATEN
