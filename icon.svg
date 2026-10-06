@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Hintergrundverlauf -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c1c1e"/>
+      <stop offset="100%" stop-color="#0a0a0c"/>
+    </linearGradient>
+    <!-- Goldener Akzent für das Schloss -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffd60a"/>
+      <stop offset="100%" stop-color="#d4a373"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hintergrund mit abgerundeten Ecken (iOS-Form) -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)"/>
+
+  <!-- Äußerer Tresorbogen / Bügel -->
+  <path d="M196 220 V160 C196 126.8 222.8 100 256 100 C289.2 100 316 126.8 316 160 V220" 
+        fill="none" stroke="url(#goldGrad)" stroke-width="28" stroke-linecap="round"/>
+
+  <!-- Schlosskörper -->
+  <rect x="156" y="220" width="200" height="170" rx="36" fill="url(#goldGrad)"/>
+
+  <!-- Schlüsselloch -->
+  <circle cx="256" cy="290" r="16" fill="#1c1c1e"/>
+  <polygon points="248,290 264,290 268,340 244,340" fill="#1c1c1e"/>
+</svg>
