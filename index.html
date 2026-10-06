@@ -149,7 +149,7 @@
       <button type="button" onclick="saveEntry()">Buchen</button>
     </div>
 
-        <!-- Buchungsliste -->
+    <!-- Buchungsliste -->
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
         <h3 style="font-size: 1rem;">Buchungen</h3>
@@ -159,6 +159,8 @@
       </div>
       <div id="entriesList"></div>
     </div>
+  </div>
+</div>
 
 <script>
   // 1. SUPABASE-DATEN
@@ -387,6 +389,53 @@
         render();
       })
       .subscribe();
+  }
+
+  // 5. EXCEL EXPORT (Datum | Kategorie | Betrag | Notizen)
+  function promptCopyType() {
+    const choice = prompt("Was möchtest du kopieren?\n\n1 = Ausgaben\n2 = Einnahmen", "1");
+    if (!choice) return;
+
+    if (choice.trim() === "1" || choice.toLowerCase().includes("ausgabe")) {
+      executeCopy("Ausgabe");
+    } else if (choice.trim() === "2" || choice.toLowerCase().includes("einnahme")) {
+      executeCopy("Einnahme");
+    } else {
+      alert("Ungültige Eingabe. Bitte '1' für Ausgaben oder '2' für Einnahmen eingeben.");
+    }
+  }
+
+  async function executeCopy(targetType) {
+    const filtered = allEntries.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === activeMonth && 
+             d.getFullYear() === activeYear && 
+             e.type === targetType;
+    });
+
+    if (filtered.length === 0) {
+      return alert(`Keine ${targetType}n im ausgewählten Monat vorhanden.`);
+    }
+
+    filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Reihenfolge: Datum | Kategorie | Betrag | Notizen
+    const rows = filtered.map(item => {
+      const amountStr = item.amount.toFixed(2).replace('.', ',');
+      return [
+        item.date,
+        item.category,
+        amountStr,
+        item.note || ""
+      ].join("\t");
+    });
+
+    try {
+      await navigator.clipboard.writeText(rows.join("\n"));
+      alert(`${filtered.length} ${targetType}n kopiert! In Excel Zelle A anklicken und Cmd+V drücken.`);
+    } catch (err) {
+      alert("Kopierfehler: " + err.message);
+    }
   }
 </script>
 </body>
